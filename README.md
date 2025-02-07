@@ -1,5 +1,5 @@
 
-# AE4S07: AE4S07 Micropropulsion Individual Project 
+# AE4S07: Micropropulsion Individual Project 
 
 ## Project ID: 60d Parallelepiped Tank Design for CubeSat  
 **Supervisor:** A. Cervone  
