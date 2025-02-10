@@ -1,0 +1,48 @@
+[materials]
+
+[materials.Ti6Al4V]
+UNS = "R56400"
+yield_strength_mpa = 880                # MPa
+allowable_stress_mpa_room_temp = 290    # MPa at ~20°C
+allowable_stress_mpa_300C = 200         # MPa at ~300°C
+absorptivity = 0.3                      # dimensionless 
+emissivity = 0.6                        # dimensionless 
+specific_heat_j_kgk = 560               # J/(kg·K)
+density_kg_m3 = 4420                    # kg/m³
+thermal_conductivity_w_mk = 6.7         # W/(m·K)
+
+[materials.StainlessSteel316L]
+UNS = "S31603"
+yield_strength_mpa = 170                # MPa
+allowable_stress_mpa_room_temp = 115    # MPa at ~20°C
+allowable_stress_mpa_300C = 90          # MPa at ~300°C
+absorptivity = 0.25                     # dimensionless
+emissivity = 0.8                        # dimensionless
+specific_heat_j_kgk = 500               # J/(kg·K)
+density_kg_m3 = 8000                    # kg/m³
+thermal_conductivity_w_mk = 16.3        # W/(m·K)
+
+[materials.StainlessSteel304L]
+UNS = "S30403"
+yield_strength_mpa = 170                # MPa
+allowable_stress_mpa_room_temp = 120    # MPa at ~20°C
+allowable_stress_mpa_300C = 90          # MPa at ~300°C
+absorptivity = 0.25                     # dimensionless
+emissivity = 0.85                       # dimensionless
+specific_heat_j_kgk = 490               # J/(kg·K)
+density_kg_m3 = 7930                    # kg/m³
+thermal_conductivity_w_mk = 14.9        # W/(m·K)
+
+[materials.Inconel625]
+UNS = "N06625"
+yield_strength_mpa = 415                # MPa
+allowable_stress_mpa_room_temp = 165    # MPa at ~20°C
+allowable_stress_mpa_300C = 125         # MPa at ~300°C
+absorptivity = 0.32                     # dimensionless
+emissivity = 0.9                        # dimensionless
+specific_heat_j_kgk = 430               # J/(kg·K)
+density_kg_m3 = 8440                    # kg/m³
+thermal_conductivity_w_mk = 9.8         # W/(m·K)
+
+
+# source: ASME BPVC 2021 Section II part D (metric)
