@@ -158,19 +158,35 @@ class _Appendix13_8_eCalcs:
 
     def I_21(self):
         """
-
-        :return: Moment of inertia of combined reinforcing member and effective width of plate w and thickness t_2
+        Moment of inertia of combined reinforcing member and effective width of plate w and thickness t_2
+        Includes stiffener contribution using the parallel axis theorem
         """
-        #  TODO: Implement parallel axis theorem for stiffener - this does not include effect of stiffener geometry in bending
-        return (1/12.0) * self.w_2() * self.t_2 ** 3
+        # Moment of inertia of the plate's effective width
+        I_plate = (1 / 12.0) * self.w_2() * self.t_2 ** 3
+
+        # Stiffener moment of inertia + parallel axis term
+        I_stiffener = (1 / 12.0) * self.ts_2 * self.H_1 ** 3
+        A_stiffener = self.A_2
+        #d_stiffener = 0.5 * (self.H_1 + self.t_2)
+        d_stiffener = 0.5 * (self.t_2)
+
+        return I_plate + I_stiffener + A_stiffener * d_stiffener ** 2
 
     def I_11(self):
         """
-
-        :return: Moment of inertia of combined reinforcing member and effective width of plate w and thickness t_1
+        Moment of inertia of combined reinforcing member and effective width of plate w and thickness t_1
+        Includes stiffener contribution using the parallel axis theorem
         """
-        #  TODO: Implement parallel axis theorem for stiffener - this does not include effect of stiffener geometry in bending
-        return (1/12.0) * self.w_1() * self.t_1 ** 3
+        # Moment of inertia of the plate's effective width
+        I_plate = (1 / 12.0) * self.w_1() * self.t_1 ** 3
+
+        # Stiffener moment of inertia + parallel axis term
+        I_stiffener = (1 / 12.0) * self.ts_1 * self.h_1 ** 3
+        A_stiffener = self.A_1
+        #d_stiffener = 0.5 * (self.h_1 + self.t_1)
+        d_stiffener = 0.5 * (self.t_1)
+
+        return I_plate + I_stiffener + A_stiffener * d_stiffener ** 2
 
     def alpha1(self):
         """
@@ -277,3 +293,64 @@ class _Appendix13_8_eCalcs:
         :return: Total stress at point Q from bending and membrane of the long side, corner; Appendix 13-8, equation 12
         """
         return self.S_m_long() + self.S_b_Q_long()
+    
+""" if __name__ == "__main__":
+    side_length = 70 / 1000
+    stiffner_thickness = 10 / 1000
+    stiffner_height = 10 / 1000
+    total_height = 90 / 1000
+    n_stiffeners = 5
+    skin_thickness = 3 / 1000
+
+    pitch = (total_height - stiffner_height) / (n_stiffeners - 1)
+    print(f" Pitch = {pitch}")
+
+
+    # Define input parameters
+    params = {
+        "P": 100000,       # Internal pressure in Pascals
+        "H": side_length,          # Long side length in m
+        "h": side_length,          # Short side length in m
+        "t_1": skin_thickness,         # Plate thickness for long side in m
+        "t_2": skin_thickness,         # Plate thickness for short side in m
+        "ts_1": stiffner_thickness,         # Stiffener thickness for long side in m
+        "ts_2": stiffner_thickness,         # Stiffener thickness for short side in m
+        "A_1": side_length*stiffner_thickness,        # Cross-sectional area for long side stiffener in m^2
+        "A_2": side_length*stiffner_thickness,        # Cross-sectional area for short side stiffener in m^2
+        "H_1": stiffner_height,        # Effective height for long side stiffener in m
+        "h_1": stiffner_height,        # Effective height for short side stiffener in m
+        "p": pitch,          # Stiffener pitch in m
+        "S": 250 * 10**6,  # Allowable stress in Pascals
+        "S_y": 400 * 10**6, # Yield stress in Pascals
+        "E_2": 200 * 10**9, # Young's modulus for plate in Pascals
+        "E_3": 210 * 10**9  # Young's modulus for stiffener in Pascals
+    }
+
+    # Instantiate calculation object
+    params_obj = type("Params", (object,), params)()
+    calc = _Appendix13_8_eCalcs(params_obj)
+
+    # Output results
+    print("*** Input Parameters ***")
+    for key, value in params.items():
+        print(f"{key} = {value}")
+    print("\n*** Stiffened Structure Calculations ***")
+    print(f"Beta_h = {calc.beta_h()}")
+    print(f"Beta_H = {calc.beta_H()}")
+    print(f"J_h = {calc.J_h()}")
+    print(f"J_H = {calc.J_H()}")
+    print(f"p_1 = {calc.p_1()} mm")
+    print(f"p_2 = {calc.p_2()} mm")
+    print(f"Stiffener effective width w_1 = {calc.w_1()} m")
+    print(f"Stiffener effective width w_2 = {calc.w_2()} m")
+
+    print(f"Membrane stress (short side) = {calc.S_m_short()} Pa")
+    print(f"Membrane stress (long side) = {calc.S_m_long()} Pa")
+    print(f"Bending stress at N (short side) = {calc.S_b_N()} Pa")
+    print(f"Bending stress at Q (short side) = {calc.S_b_Q_short()} Pa")
+    print(f"Bending stress at M (long side) = {calc.S_b_M()} Pa")
+    print(f"Bending stress at Q (long side) = {calc.S_b_Q_long()} Pa")
+    print(f"Total stress at N (short side) = {calc.S_T_N()} Pa")
+    print(f"Total stress at Q (short side) = {calc.S_T_Q_short()} Pa")
+    print(f"Total stress at M (long side) = {calc.S_T_M()} Pa")
+    print(f"Total stress at Q (long side) = {calc.S_T_Q_long()} Pa") """

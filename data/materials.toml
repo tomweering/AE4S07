@@ -10,6 +10,8 @@ emissivity = 0.6                        # dimensionless
 specific_heat_j_kgk = 560               # J/(kg·K)
 density_kg_m3 = 4420                    # kg/m³
 thermal_conductivity_w_mk = 6.7         # W/(m·K)
+modulus_of_elasticity_gpa = 113         # GPa
+price_per_kg_eur = 420                  # Estimated average: 300–600 €/kg
 
 [materials.StainlessSteel316L]
 UNS = "S31603"
@@ -21,6 +23,8 @@ emissivity = 0.8                        # dimensionless
 specific_heat_j_kgk = 500               # J/(kg·K)
 density_kg_m3 = 8000                    # kg/m³
 thermal_conductivity_w_mk = 16.3        # W/(m·K)
+modulus_of_elasticity_gpa = 193         # GPa
+price_per_kg_eur = 100                  # Estimated average: 80–120 €/kg
 
 [materials.StainlessSteel304L]
 UNS = "S30403"
@@ -32,6 +36,8 @@ emissivity = 0.85                       # dimensionless
 specific_heat_j_kgk = 490               # J/(kg·K)
 density_kg_m3 = 7930                    # kg/m³
 thermal_conductivity_w_mk = 14.9        # W/(m·K)
+modulus_of_elasticity_gpa = 193         # GPa
+price_per_kg_eur = 100                  # Estimated average: 80–120 €/kg
 
 [materials.Inconel625]
 UNS = "N06625"
@@ -43,6 +49,7 @@ emissivity = 0.9                        # dimensionless
 specific_heat_j_kgk = 430               # J/(kg·K)
 density_kg_m3 = 8440                    # kg/m³
 thermal_conductivity_w_mk = 9.8         # W/(m·K)
-
+modulus_of_elasticity_gpa = 205         # GPa
+price_per_kg_eur = 150                  # Estimated average: 100–200 €/kg
 
 # source: ASME BPVC 2021 Section II part D (metric)
