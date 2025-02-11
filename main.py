@@ -3,6 +3,7 @@ import os
 import toml
 import math
 import copy
+import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -323,7 +324,7 @@ def plot_mass_vs_cost(materials_data):
             masses.append(mass)
             costs.append(cost)
             labels.append("Unstiffened")
-            all_points.append((mass, cost, material_name, "Unstiffened"))
+            all_points.append((mass, cost, material_name, "Unstiffened", thickness))
 
         # Stiffened structures
         for n_stiffeners in range(2, 6):
@@ -338,7 +339,7 @@ def plot_mass_vs_cost(materials_data):
                 masses.append(mass)
                 costs.append(cost)
                 labels.append(f"{n_stiffeners} Stiffeners")
-                all_points.append((mass, cost, material_name, f"{n_stiffeners} Stiffeners"))
+                all_points.append((mass, cost, material_name, f"{n_stiffeners} Stiffeners", thickness))
 
         # Assign color to the material
         material_colors[material_name] = color_map(idx)
@@ -349,12 +350,12 @@ def plot_mass_vs_cost(materials_data):
             #ax.annotate(label, (costs[i], masses[i]))
 
     # Calculate distances from the origin and print the top 10 closest points
-    distances = [((mass**2 + cost**2)**0.5, mass, cost, material_name, structure_type) for mass, cost, material_name, structure_type in all_points]
+    distances = [((mass**2 + cost**2)**0.5, mass, cost, material_name, structure_type, thickness) for mass, cost, material_name, structure_type, thickness in all_points]
     distances.sort()
-    print("Top 10 closest points to the origin (0,0):")
-    for i in range(10):
-        distance, mass, cost, material_name, structure_type = distances[i]
-        print(f"Material: {material_name}, Structure: {structure_type}, Mass: {mass:.2f} kg, Cost: {cost:.2f} €")
+    print("Top 20 closest points to the origin (0,0):")
+    for i in range(20):
+        distance, mass, cost, material_name, structure_type, thickness = distances[i]
+        print(f"Material: {material_name}, Structure: {structure_type}, Mass: {mass:.2f} kg, Cost: {cost:.2f} €, Thickness: {thickness:.2f} mm")
 
     ax.set_title("Mass vs Cost for Different Structures and Materials")
     ax.set_xlabel("Cost (€)")
@@ -371,6 +372,15 @@ def plot_mass_vs_cost(materials_data):
     plt.savefig(plot_path)
     plt.show()
 
+    # Save designs to CSV
+    csv_path = os.path.join("data", "designs.csv")
+    with open(csv_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Material", "Structure Type", "Mass (kg)", "Cost (€)", "Thickness (mm)"])
+        for mass, cost, material_name, structure_type, thickness in all_points:
+            writer.writerow([material_name, structure_type, mass, cost, thickness])
+
+
 
 
 if __name__ == "__main__":
@@ -381,9 +391,6 @@ if __name__ == "__main__":
 
     if material_data:
         materials = material_data.get("materials", {})
-        #TODO make function that extract the first feasible solution for a pressure of 2MPa
-        #TODO use the calculate_mass_cost function to get the associated mass and cost
-        #TODO plot the mass vs cost for the different materials for different types of stiffenes (should be labeled)
         plot_mass_vs_cost(materials)
 
         #plot_pressure_thickness_analysis(materials)

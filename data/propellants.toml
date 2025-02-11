@@ -1,0 +1,41 @@
+[propellants]
+
+[propellants.AF_M315E]      #ASCENT
+name = "AF-M315E"
+theoretical_vacuum_isp_s = 266
+density_g_per_cm3 = 1.47
+volumetric_specific_impulse_gs_per_cm3 = 391
+chamber_temperature_k = 2166
+freezing_temperature_c = -80
+vapor_pressure_kpa = 1.4
+maturity = "High"
+
+[propellants.LMP_103S]
+name = "LMP-103S"
+theoretical_vacuum_isp_s = 252
+density_g_per_cm3 = 1.24
+volumetric_specific_impulse_gs_per_cm3 = 312.48
+chamber_temperature_k = 1903
+freezing_temperature_c = -7
+vapor_pressure_kpa = 13.6
+maturity = "High"
+
+[propellants.HNP225]
+name = "HNP225"
+theoretical_vacuum_isp_s = 213
+density_g_per_cm3 = 1.16
+volumetric_specific_impulse_gs_per_cm3 = 245
+chamber_temperature_k = 990
+freezing_temperature_c = -10
+vapor_pressure_kpa = "Uncertain"
+maturity = "Low"
+
+[propellants.FLP_106]
+name = "FLP-106"
+theoretical_vacuum_isp_s = 255
+density_g_per_cm3 = 1.357
+volumetric_specific_impulse_gs_per_cm3 = 344.6
+chamber_temperature_k = 2087
+freezing_temperature_c = 0
+vapor_pressure_kpa = 2.1
+maturity = "Medium"

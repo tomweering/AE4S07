@@ -1,0 +1,62 @@
+[propulsion_systems]
+
+[propulsion_systems.MPS_135]
+name = "MPS-135"
+propellant = "AF-M315E"
+size = "4U"
+thrust_n_per_thruster = 1
+number_of_thrusters = 4
+total_thrust_n = 4
+propellant_mass_kg = 3.7
+wet_mass_kg = 7.2
+total_impulse_n_s = 7290
+feed_and_pressurization = "Pump"
+
+[propulsion_systems.BGT_X5]
+name = "BGT-X5"
+propellant = "AF-M315E"
+size = "1U"
+thrust_n_per_thruster = 0.5
+number_of_thrusters = 1
+total_thrust_n = 0.5
+propellant_mass_kg = 0.26
+wet_mass_kg = 1.5
+total_impulse_n_s = 565
+feed_and_pressurization = "PLPS (b) – gas generator"
+
+[propulsion_systems.EPSS_C1]
+name = "EPSS C1"
+propellant = "ADN-based blend"
+size = "1U"
+thrust_n_per_thruster = 0.1
+number_of_thrusters = 1
+total_thrust_n = 0.1
+propellant_mass_kg = 0.33
+wet_mass_kg = 1.2
+total_impulse_n_s = 650
+feed_and_pressurization = "Barrier separated constant pressure gas"
+
+[propulsion_systems.Pinot_G_HNP225]
+name = "Pinot-G HNP225"
+propellant = "AF-M315E"
+size = "∅350–135 mm LFPS"
+thrust_n_per_thruster = 0.5
+number_of_thrusters = 4
+additional_thrusters_thrust_n = 0.1
+additional_number_of_thrusters = 4
+total_thrust_n = 2.0
+propellant_mass_kg = 0.4
+wet_mass_kg = 10
+total_impulse_n_s = 667.08
+feed_and_pressurization = "Pressurization in orbit – gas generators"
+
+[propulsion_systems.Pinot_G_HNP225_High_Performance]
+name = "Pinot-G HNP225 (High-Performance Variant)"
+propellant = "AF-M315E"
+size = "∅350–135 mm LFPS"
+thrust_n_per_thruster = 5.55
+number_of_thrusters = 1
+propellant_mass_kg = 5.55
+wet_mass_kg = 2500
+total_impulse_n_s = ">2500"
+feed_and_pressurization = "Pump"
