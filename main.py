@@ -382,6 +382,23 @@ def plot_mass_vs_cost(materials_data):
 
 
 
+def capillary_length(material_properties):
+    surface_tension = material_properties.get("surface_tension_mN_per_m", 0)
+    density = material_properties.get("density_g_per_cm3", 0)
+    #convert to SI units
+    surface_tension = surface_tension * 10**-3
+    density = density * 10**3
+
+    #assumption on acceleration on 3U cubesat
+    m_assumed = 5.5 #[kg]
+    T_assumed = 1.0 #[N]
+    a = T_assumed / m_assumed #[m/s^2]
+
+    #calculate capillary length
+    lamda = (surface_tension / (density * a))**(1/2)
+
+    return lamda
+
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -391,7 +408,17 @@ if __name__ == "__main__":
 
     if material_data:
         materials = material_data.get("materials", {})
-        plot_mass_vs_cost(materials)
+        #plot_mass_vs_cost(materials)
 
         #plot_pressure_thickness_analysis(materials)
         #plot_stiffened_vs_unstiffened(materials)
+    
+    #Get propellant data from data/propellants.toml
+    propellant_data = read_material_data(os.path.join(base_dir, "data", "propellants.toml"))
+    if propellant_data:
+        propellants = propellant_data.get("propellants", {})
+        for propellant_name, propellant_properties in propellants.items():
+            lamda = capillary_length(propellant_properties)
+            print(f"Capillary length for {propellant_name}: {(lamda*1000):.3f} [mm]")
+    else:
+        print("No propellant data found.")

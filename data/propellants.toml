@@ -9,6 +9,8 @@ chamber_temperature_k = 2166
 freezing_temperature_c = -80
 vapor_pressure_kpa = 1.4
 maturity = "High"
+absolute_viscosity_mPas = 15        # Estimated based on ethylene glycol/glycerin
+surface_tension_mN_per_m = 55       # Estimated based on glycerol
 
 [propellants.LMP_103S]
 name = "LMP-103S"
@@ -19,6 +21,8 @@ chamber_temperature_k = 1903
 freezing_temperature_c = -7
 vapor_pressure_kpa = 13.6
 maturity = "High"
+absolute_viscosity_mPas = 3         # Estimated based on ethanol-water mixtures
+surface_tension_mN_per_m = 35       # Estimated based on similar aqueous solutions
 
 [propellants.HNP225]
 name = "HNP225"
@@ -29,6 +33,8 @@ chamber_temperature_k = 990
 freezing_temperature_c = -10
 vapor_pressure_kpa = "Uncertain"
 maturity = "Low"
+absolute_viscosity_mPas = 2.5       # Estimated based on nitromethane
+surface_tension_mN_per_m = 30       # Estimated based on nitromethane
 
 [propellants.FLP_106]
 name = "FLP-106"
@@ -39,3 +45,22 @@ chamber_temperature_k = 2087
 freezing_temperature_c = 0
 vapor_pressure_kpa = 2.1
 maturity = "Medium"
+absolute_viscosity_mPas = 4         # Estimated based on nitromethane/acetonitrile
+surface_tension_mN_per_m = 32       # Estimated based on acetonitrile
+
+# Estimated values based on properties of chemically similar liquids (ethylene glycol, nitromethane, acetonitrile, ethanol-water solutions).
+# References:
+# - V. L. Streeter, Handbook of Fluid Dynamics, McGraw-Hill, New York, 1961.
+# - V. L. Streeter, Fluid Mechanics, 4th ed., McGraw-Hill, New York, 1966.
+# - A.A. Newman, Glycerol, CRC Press, Cleveland, 1968.
+# - R. E. Bolz and G. L. Tuve, Handbook of Tables for Applied Engineering Sciences, CRC Press, Cleveland, 1973.
+# - NASA Technical Reports on GPIM AF-M315E Propulsion System.
+# - ECAPS Documentation on Green Propellant LMP-103S.
+# - Modular Impulsive Green Monopropellant Propulsion System (MIMPS) research paper.
+
+
+# Temperature / Pressure effects on viscosity and surface tension (assume P: 2 [MPa], T: 15 [c])
+#   Viscosity (μ) increases slightly (~5-10%) → Slower fluid movement, affects flow through valves/nozzles.
+#   Surface tension (σ) increases slightly (~2-3%) → Affects droplet formation, wicking, and tank wetting behavior.
+#   Pressure effect is minimal, but temperature is more significant at 15°C.
+
