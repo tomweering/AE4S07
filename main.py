@@ -382,7 +382,7 @@ def plot_mass_vs_cost(materials_data):
 
 
 
-def capillary_length(material_properties):
+def capillary_length(material_properties, thickness):
     surface_tension = material_properties.get("surface_tension_mN_per_m", 0)
     density = material_properties.get("density_g_per_cm3", 0)
     #convert to SI units
@@ -397,7 +397,172 @@ def capillary_length(material_properties):
     #calculate capillary length
     lamda = (surface_tension / (density * a))**(1/2)
 
-    return lamda
+    #get fillet radius to resist capillary effect
+    L =math.sqrt((35 - thickness)**2 + (35 - thickness)**2)
+    R = L - math.sqrt((lamda**2)/4)
+
+    return lamda, R
+
+#TODO make function that compares PMD (Propellant Management Device) designs
+# fillet on the edges to resist the capillary effect
+# vanes to transfer fluid from the corners to the center
+# sponge to absorb the fluid
+
+#for the vane get surface area from frustum (1/4)lateral area (1/2 for total)
+#source: https://www.calculatorsoup.com/calculators/geometry-solids/conicalfrustum.php
+
+def vane_sizing(material_properties):
+    flow_rate = 30 #[mL / min] (from MiMPS-G e-micro pump)
+    #flow_rate = 420 #[mL / min] (exaggerated)
+    viscosity = material_properties.get("absolute_viscosity_mPas", 0)
+    density = material_properties.get("density_g_per_cm3", 0)
+    surface_tension = material_properties.get("surface_tension_mN_per_m", 0)
+    delta = (1.5/1000)  #[m] thickness of "sheet metal vane" (in accordance with printable thickness)
+    L = (90/1000)   #[m] length of the vane
+
+    #convert to SI units
+    flow_rate = flow_rate * 10**-6 / 60         #[m^3 / s]
+    viscosity = viscosity * 10**-3              #[Pa s]
+    density = density * 10**3                   #[kg / m^3]
+    surface_tension = surface_tension * 10**-3  #[N / m]
+
+    #Slant height of a conical frustum:
+    #s = √((r1 - r2)^2 + h^2)
+    #Lateral surface area of a conical frustum:
+    # S = π * (r1 + r2) * s = π * (r1 + r2) * √((r1 - r2)^2 + h^2)
+    #Volume of a conical frustum:
+    #V = (1/3) * π * h * (r1^2 + r2^2 + (r1 * r2))
+
+    vanes = []
+
+    #Get relation for Rdown and Rup from knowing total height and overhang angle can at most be 45 degrees
+    for R in np.arange(delta/2, 10*delta, 0.001):
+        for theta in np.arange(0, math.pi/4, 0.001):
+            R_down = R
+            R_up = R + L * math.tan(theta)
+
+            s = math.sqrt((R_up - R_down)**2 + L**2)
+            S = math.pi * (R_up + R_down) * s
+            V = (1/3) * math.pi * L * (R_up**2 + R_down**2 + (R_up * R_down))
+            A = S / 2                               #[m^2] (1/2 of the TOTAL lateral area)
+            #Q = flow_rate / 4                       #assume 4 vanes, one for each corner
+            Q = flow_rate
+
+
+            viscous_losses = (2*viscosity*Q*L)/A    #assume wetted area = surface area
+            dynamic_losses = (density*Q**2)/(2*A**2)
+
+            young_laplace = surface_tension * (1/R_down - 1/R_up)
+
+            V_vane = R_up*delta*L + L*(R_up+ delta/2)**2  #assumption on volume of vane
+
+            #Print pressures
+            #print(f"viscous_losses: {viscous_losses}, dynamic_losses: {dynamic_losses}, young_laplace: {young_laplace}")
+
+            #Check if absolute value of yound_laplace is greater than combined absolute value of viscous and dynamic losses
+            if abs(young_laplace) > abs(viscous_losses + dynamic_losses):
+                vane = [R_down, R_up, V_vane]
+                vanes.append(vane)
+
+
+    #Sort vanes based on V_vane and return the smallest one
+    min_vane = min(vanes, key=lambda x: x[2])
+    #print(f"R_down: {min_vane[0]*1000} mm, R_up: {min_vane[1]*1000} mm")
+    #print(f"viscous_losses: {viscous_losses}, dynamic_losses: {dynamic_losses}, young_laplace: {young_laplace}")
+
+    return min_vane
+
+def sponge_sizing(propellant_properties):
+    # sigma, rho, a, V_req, r_sponge, t=0.3e-3, g_min_fab=0.5e-3, g_max_ratio=2
+
+    # Obtain propellant properties
+    sigma = propellant_properties.get("surface_tension_mN_per_m", 0) * 10**-3
+    rho = propellant_properties.get("density_g_per_cm3", 0) * 10**3
+    # assumption on acceleration on 3U cubesat
+    m_assumed = 5.5 #[kg]
+    T_assumed = 1.0 #[N]
+    a = T_assumed / m_assumed #[m/s^2]
+
+    # Get V_req through burntime and flowrate
+    burntime = 10 #[s] (estimate)
+    flowrate = 30 #[mL / min] (from MiMPS-G e-micro pump)
+    V_req = (flowrate * 10**-6 / 60) * burntime #[m^3]
+
+    P_bubble_point = 200   # Bubble point pressure (Pa) (assumption)
+    AR = 11.25           # Aspect ratio (stable for additive manufacturing) source: https://apps.dtic.mil/sti/pdfs/AD1098357.pdf
+
+    sponges = []
+
+    # Cycle through a range of radii and thicknesses
+    for N in range(10,36):
+        r = (2* sigma)/P_bubble_point
+        g_max = math.sqrt(sigma/(a*rho))
+        R = (g_max*N)/(2*math.pi)
+        h = V_req/(math.pi*r**2)
+        t = h/AR
+        
+        V = (R-r)*N*t
+
+        if h > 90e-3:
+            h = 90e-3
+            r = math.sqrt((V_req)/(h*math.pi))
+            t = h/AR
+
+        if t > 0.5e-3 and R < 0.05:
+            sponge = [r, R, h, t, N, V]
+            sponges.append(sponge)
+
+    # Sort sponges based on V and return the smallest one
+    best_design = min(sponges, key=lambda x: x[5])
+
+    if best_design[2] >= 90e-3:
+        print("r too large to rely on surface tension or capillary action to prevent gas injection. Lattice is required.")
+
+    return best_design
+
+
+def PMD_design():
+    #Material densities
+    densities = {"Ti6Al4V": 4420, "StainlessSteel316L": 8000, "StainlessSteel304L": 7930, "Inconel625": 8440}
+
+    designs_file_path = os.path.join("data", "designs.csv")
+    
+    with open(designs_file_path, mode='r') as file:
+        reader = csv.DictReader(file)
+        designs = list(reader)
+    
+    for design in designs:
+        material = design["Material"]
+        thickness = float(design["Thickness (mm)"]) / 1000  # Convert thickness to meters
+        #TODO get material densities from dictionary 
+        density_material = densities.get(material, 0)
+
+        #TODO cycle through the different propellants, insert into material_properties
+        propellant_data = read_material_data(os.path.join(base_dir, "data", "propellants.toml"))
+        if propellant_data:
+            propellants = propellant_data.get("propellants", {})
+            for propellant_name, propellant_properties in propellants.items():
+
+                lamda, R = capillary_length(propellant_properties, thickness)
+                #Convert from mm to m
+                lamda = lamda / 1000
+                R = R / 1000
+
+                h = 90 / 1000  # Height in meters
+                
+                # Calculate the volume of the fillet
+                volume_fillet = 0.5 * R * h
+                
+                # Calculate the mass of the fillet assuming 15% infill
+                mass_fillet = volume_fillet * density_material * 0.15
+                
+                vane_design = vane_sizing(propellant_properties)
+
+                vane_mass = vane_design[2] * density_material
+
+                #TODO calculate sponge sizing
+                sponge_design = sponge_sizing(propellant_properties)
+                print(f"r: {sponge_design[0]*1000} [mm], R: {sponge_design[1]*1000} [mm], h: {sponge_design[2]*1000} [mm], t: {sponge_design[3]*1000} [mm], N: {sponge_design[4]}, V: {sponge_design[5]} [m^3]")
 
 
 if __name__ == "__main__":
@@ -413,12 +578,5 @@ if __name__ == "__main__":
         #plot_pressure_thickness_analysis(materials)
         #plot_stiffened_vs_unstiffened(materials)
     
-    #Get propellant data from data/propellants.toml
-    propellant_data = read_material_data(os.path.join(base_dir, "data", "propellants.toml"))
-    if propellant_data:
-        propellants = propellant_data.get("propellants", {})
-        for propellant_name, propellant_properties in propellants.items():
-            lamda = capillary_length(propellant_properties)
-            print(f"Capillary length for {propellant_name}: {(lamda*1000):.3f} [mm]")
-    else:
-        print("No propellant data found.")
+    PMD_design()
+
