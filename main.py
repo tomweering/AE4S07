@@ -657,7 +657,7 @@ def trade_off():
     printability_norm = normalize(printability_values)
 
     # Compute final trade-off score using weights
-    weights = {"Mass": 7, "Effective Tank Volume": 8, "Cost": 10, "Printability": 5}
+    weights = {"Mass": 4, "Effective Tank Volume": 1, "Cost": 3, "Printability": 2}
     
     trade_off_scores = [
         (weights["Mass"] * m +

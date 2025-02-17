@@ -70,7 +70,7 @@ def optimize_stiffener_curve(L, h, n, t, plot=True):
         plt.title("Optimized Support Curve with Area Calculation")
         plt.grid()
         plt.show()
-        
+
         # Print results
         print(f"Optimized curve height (y0) to keep slope ≤ 45°: {y0:.4f}")
         print(f"Adjusted thickness (t - y0): {t - y0:.4f}")
