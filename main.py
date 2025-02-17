@@ -11,6 +11,7 @@ from scipy.interpolate import griddata
 from ASME._Appendix13_7_a import Appendix13_7_aParams, Appendix13_7_aCalcs
 from ASME._Appendix13_8_e import _Appendix13_8_eCalcs
 from ASME._Appendix13_7_c import Appendix13_7_cParams, Appendix13_7_cCalcs
+from curve import optimize_stiffener_curve
 
 
 def read_material_data(filename):
@@ -472,8 +473,9 @@ def vane_sizing(material_properties):
 
     return min_vane
 
-def sponge_sizing(propellant_properties):
+def sponge_sizing(propellant_properties, thickness):
     # sigma, rho, a, V_req, r_sponge, t=0.3e-3, g_min_fab=0.5e-3, g_max_ratio=2
+    propellant_name = propellant_properties.get("name", "")
 
     # Obtain propellant properties
     sigma = propellant_properties.get("surface_tension_mN_per_m", 0) * 10**-3
@@ -489,7 +491,7 @@ def sponge_sizing(propellant_properties):
     V_req = (flowrate * 10**-6 / 60) * burntime #[m^3]
 
     P_bubble_point = 200   # Bubble point pressure (Pa) (assumption)
-    AR = 11.25           # Aspect ratio (stable for additive manufacturing) source: https://apps.dtic.mil/sti/pdfs/AD1098357.pdf
+    #ratio = 47438           # Get thickness through simple cantilever model s source: https://apps.dtic.mil/sti/pdfs/AD1098357.pdf
 
     sponges = []
 
@@ -499,17 +501,20 @@ def sponge_sizing(propellant_properties):
         g_max = math.sqrt(sigma/(a*rho))
         R = (g_max*N)/(2*math.pi)
         h = V_req/(math.pi*r**2)
-        t = h/AR
-        
-        V = (R-r)*N*t
+
+        #TODO Add requirement to get thickness by setting constraint on percentage of total volume dedicated to PMD
+        V_tank = ((70/1000)-2*thickness)**2 * (90/1000 - 2*thickness)
+        V_PMD = 0.1 * V_tank
+        t = V_PMD / (N*(R-r))
 
         if h > 90e-3:
             h = 90e-3
             r = math.sqrt((V_req)/(h*math.pi))
-            t = h/AR
+            r_lattice = (2* sigma)/P_bubble_point
+            
 
-        if t > 0.5e-3 and R < 0.05:
-            sponge = [r, R, h, t, N, V]
+        if R < 0.05:
+            sponge = [propellant_name, r, R, h, t, N, V_PMD, r_lattice]
             sponges.append(sponge)
 
     # Sort sponges based on V and return the smallest one
@@ -522,48 +527,160 @@ def sponge_sizing(propellant_properties):
 
 
 def PMD_design():
-    #Material densities
+    # Material densities
     densities = {"Ti6Al4V": 4420, "StainlessSteel316L": 8000, "StainlessSteel304L": 7930, "Inconel625": 8440}
+    structure_types = {"Unstiffened": 0, "2 Stiffeners": 2, "3 Stiffeners": 3, "4 Stiffeners": 4, "5 Stiffeners": 5}
 
     designs_file_path = os.path.join("data", "designs.csv")
-    
+    output_file_path = os.path.join("data", "PMD_designs.csv")
+
+    infill = 0.15  # assumed for support and non-structural 15% infill
+
     with open(designs_file_path, mode='r') as file:
         reader = csv.DictReader(file)
         designs = list(reader)
-    
+
+    with open(output_file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Material", "Structure Type", "Propellant", "Thickness (mm)", "R_down (mm)", "R_up (mm)", "V_vane (m^3)", "Vane Mass (kg)", "r_sponge (mm)", "R_sponge (mm)", "h_sponge (mm)", "t_sponge (mm)", "N_sponge", "V_sponge (m^3)", "r_lattice (mm)", "Sponge Mass (kg)", "Support Mass (kg)", "Support Cost (€)", "Total Mass (kg)", "Total Cost (€)"])
+
+        for design in designs:
+            material = design["Material"]
+            cost = float(design["Cost (€)"])
+            mass = float(design["Mass (kg)"])
+            price_per_kg = cost / mass
+            structure_type = design["Structure Type"]
+            thickness = float(design["Thickness (mm)"]) / 1000  # Convert thickness to meters
+            density_material = densities.get(material, 0)
+
+            propellant_data = read_material_data(os.path.join(base_dir, "data", "propellants.toml"))
+            if propellant_data:
+                propellants = propellant_data.get("propellants", {})
+                for propellant_name, propellant_properties in propellants.items():
+
+                    lamda, R = capillary_length(propellant_properties, thickness)
+                    lamda = lamda / 1000  # Convert from mm to m
+                    R = R / 1000  # Convert from mm to m
+
+                    h = 90 / 1000  # Height in meters
+
+                    # Calculate the volume of the fillet
+                    volume_fillet = 0.5 * R * h
+
+                    # Calculate the mass of the fillet assuming 15% infill
+                    mass_fillet = volume_fillet * density_material * infill
+
+                    # Get mass of support for stiffeners
+                    if structure_type == "Unstiffened":
+                        n_stiffeners = 0
+                        mass_support = 0
+                    else:
+                        n_stiffeners = structure_types.get(structure_type, 0)
+                        area_support = optimize_stiffener_curve(L=90, h=5, n=n_stiffeners, t=5, plot=False)[1]
+                        volume_support = 4 * (n_stiffeners - 1) * 70 * area_support
+                        volume_support = volume_support / 10**9  # Convert from mm^3 to m^3
+                        mass_support = volume_support * density_material * infill
+
+                    vane_design = vane_sizing(propellant_properties)
+                    vane_mass = vane_design[2] * density_material
+
+                    sponge_design = sponge_sizing(propellant_properties, thickness)
+                    sponge_mass = sponge_design[6] * density_material
+
+                    total_mass = vane_mass + sponge_mass + mass
+                    support_cost = mass_support * price_per_kg
+                    total_cost = total_mass * price_per_kg + support_cost
+
+                    #TODO limit the accuracy to 0.00 i.e. 3 significant figures
+                    writer.writerow([material, structure_type, propellant_name, thickness * 1000, vane_design[0] * 1000, vane_design[1] * 1000, vane_design[2], vane_mass, sponge_design[1] * 1000, sponge_design[2] * 1000, sponge_design[3] * 1000, sponge_design[4] * 1000, sponge_design[5], sponge_design[6], sponge_design[7] * 1000, sponge_mass, mass_support, support_cost, total_mass, total_cost])
+
+                    #print(f"Material: {material}, Structure Type: {structure_type}, Propellant: {propellant_name}, Thickness: {thickness * 1000} mm, R_down: {vane_design[0] * 1000} mm, R_up: {vane_design[1] * 1000} mm, V_vane: {vane_design[2]} m^3, Vane Mass: {vane_mass} kg, r_sponge: {sponge_design[1] * 1000} mm, R_sponge: {sponge_design[2] * 1000} mm, h_sponge: {sponge_design[3] * 1000} mm, t_sponge: {sponge_design[4] * 1000} mm, N_sponge: {sponge_design[5]}, V_sponge: {sponge_design[6]} m^3, r_lattice: {sponge_design[7] * 1000} mm, Sponge Mass: {sponge_mass} kg, Support Mass: {mass_support} kg, Support Cost: {support_cost} €, Total Mass: {total_mass} kg, Total Cost: {total_cost} €")
+
+# Normalize using min-max scaling
+def normalize(values):
+    min_val, max_val = min(values), max(values)
+    return [(v - min_val) / (max_val - min_val) if max_val > min_val else 0 for v in values]
+
+def trade_off():
+    # Dictionary of volumetric ISPs (gs/cm³)
+    volumetric_specific_impulse_gs_per_cm3 = {
+        "AF_M315E": 391, "LMP_103S": 312.48, "HNP225": 245, "FLP_106": 344.6
+    }
+
+    # Read CSV file
+    designs_file_path = os.path.join("data", "PMD_designs.csv")
+    with open(designs_file_path, mode='r') as file:
+        reader = csv.DictReader(file)
+        designs = list(reader)
+
+    # Extract values for normalization
+    mass_values = []
+    eff_tank_values = []
+    cost_values = []
+    r_lattice_values = []
+    t_sponge_values = []
+    support_mass_values = []
+
     for design in designs:
-        material = design["Material"]
-        thickness = float(design["Thickness (mm)"]) / 1000  # Convert thickness to meters
-        #TODO get material densities from dictionary 
-        density_material = densities.get(material, 0)
+        mass_values.append(float(design["Total Mass (kg)"]))
+        cost_values.append(float(design["Total Cost (€)"]))
+        r_lattice_values.append(float(design["r_lattice (mm)"]))
+        t_sponge_values.append(float(design["t_sponge (mm)"]))
+        support_mass_values.append(float(design["Support Mass (kg)"]))
 
-        #TODO cycle through the different propellants, insert into material_properties
-        propellant_data = read_material_data(os.path.join(base_dir, "data", "propellants.toml"))
-        if propellant_data:
-            propellants = propellant_data.get("propellants", {})
-            for propellant_name, propellant_properties in propellants.items():
+        thickness = float(design["Thickness (mm)"])
+        V_vane = float(design["V_vane (m^3)"])
+        V_sponge = float(design["V_sponge (m^3)"])
+        
+        V_tank_mm3 = (70/1000 - 2 * thickness) ** 2 * (90/1000 - 2 * thickness)  # mm³
+        V_tank = V_tank_mm3 / 10**9  # Convert to m³
+        V_propellant = (V_tank - V_vane - V_sponge) * (85/90)  # m³
+        V_propellant_cm3 = V_propellant * 10**6  # Convert to cm³
+        eff_tank_values.append(V_propellant_cm3 * volumetric_specific_impulse_gs_per_cm3[design["Propellant"]])  # gs
 
-                lamda, R = capillary_length(propellant_properties, thickness)
-                #Convert from mm to m
-                lamda = lamda / 1000
-                R = R / 1000
 
-                h = 90 / 1000  # Height in meters
-                
-                # Calculate the volume of the fillet
-                volume_fillet = 0.5 * R * h
-                
-                # Calculate the mass of the fillet assuming 15% infill
-                mass_fillet = volume_fillet * density_material * 0.15
-                
-                vane_design = vane_sizing(propellant_properties)
+    mass_norm = normalize(mass_values)
+    eff_tank_norm = normalize(eff_tank_values)
+    cost_norm = normalize(cost_values)
+    r_lattice_norm = normalize(r_lattice_values)
+    t_sponge_norm = normalize(t_sponge_values)
+    support_mass_norm = normalize(support_mass_values)
 
-                vane_mass = vane_design[2] * density_material
+    # Compute printability (equal weights of 1/3)
+    printability_values = [
+        (r + t + s) / 3 for r, t, s in zip(r_lattice_norm, t_sponge_norm, support_mass_norm)
+    ]
 
-                #TODO calculate sponge sizing
-                sponge_design = sponge_sizing(propellant_properties)
-                print(f"r: {sponge_design[0]*1000} [mm], R: {sponge_design[1]*1000} [mm], h: {sponge_design[2]*1000} [mm], t: {sponge_design[3]*1000} [mm], N: {sponge_design[4]}, V: {sponge_design[5]} [m^3]")
+    # Normalize printability
+    printability_norm = normalize(printability_values)
 
+    # Compute final trade-off score using weights
+    weights = {"Mass": 4, "Effective Tank Volume": 2, "Cost": 3, "Printability": 2}
+    
+    trade_off_scores = [
+        (4 * m + 2 * e + 3 * c + 2 * p) / sum(weights.values())
+        for m, e, c, p in zip(mass_norm, eff_tank_norm, cost_norm, printability_norm)
+    ]
+
+    # Store results
+    for i, design in enumerate(designs):
+        design["Printability"] = printability_values[i]
+        design["Trade-off Score"] = trade_off_scores[i]
+
+    # Write updated data to a new CSV
+    output_file_path = os.path.join("data", "PMD_designs_with_tradeoff.csv")
+    with open(output_file_path, mode='w', newline='') as file:
+        fieldnames = designs[0].keys()
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(designs)
+
+    print(f"Trade-off analysis completed. Results saved to {output_file_path}")
+    #Print top 10 designs
+    designs.sort(key=lambda x: x["Trade-off Score"], reverse=True)
+    print("Top 10 designs:")
+    for i in range(10):
+        print(f"Material: {designs[i]['Material']}, Structure Type: {designs[i]['Structure Type']}, Propellant: {designs[i]['Propellant']}, Thickness: {designs[i]['Thickness (mm)']} mm, Trade-off Score: {designs[i]['Trade-off Score']:.2f}")
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -579,4 +696,5 @@ if __name__ == "__main__":
         #plot_stiffened_vs_unstiffened(materials)
     
     PMD_design()
+    trade_off()
 
