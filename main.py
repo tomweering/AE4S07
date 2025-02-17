@@ -596,10 +596,12 @@ def PMD_design():
 
                     #print(f"Material: {material}, Structure Type: {structure_type}, Propellant: {propellant_name}, Thickness: {thickness * 1000} mm, R_down: {vane_design[0] * 1000} mm, R_up: {vane_design[1] * 1000} mm, V_vane: {vane_design[2]} m^3, Vane Mass: {vane_mass} kg, r_sponge: {sponge_design[1] * 1000} mm, R_sponge: {sponge_design[2] * 1000} mm, h_sponge: {sponge_design[3] * 1000} mm, t_sponge: {sponge_design[4] * 1000} mm, N_sponge: {sponge_design[5]}, V_sponge: {sponge_design[6]} m^3, r_lattice: {sponge_design[7] * 1000} mm, Sponge Mass: {sponge_mass} kg, Support Mass: {mass_support} kg, Support Cost: {support_cost} €, Total Mass: {total_mass} kg, Total Cost: {total_cost} €")
 
-# Normalize using min-max scaling
-def normalize(values):
+# Normalize using min-max scaling, with an option to invert values for minimization
+def normalize(values, invert=False):
     min_val, max_val = min(values), max(values)
-    return [(v - min_val) / (max_val - min_val) if max_val > min_val else 0 for v in values]
+    norm_values = [(v - min_val) / (max_val - min_val) if max_val > min_val else 0 for v in values]
+    
+    return [1 - v if invert else v for v in norm_values]  # Invert if we want to minimize
 
 def trade_off():
     # Dictionary of volumetric ISPs (gs/cm³)
@@ -622,31 +624,31 @@ def trade_off():
     support_mass_values = []
 
     for design in designs:
-        mass_values.append(float(design["Total Mass (kg)"]))
-        cost_values.append(float(design["Total Cost (€)"]))
-        r_lattice_values.append(float(design["r_lattice (mm)"]))
-        t_sponge_values.append(float(design["t_sponge (mm)"]))
-        support_mass_values.append(float(design["Support Mass (kg)"]))
+        mass_values.append(float(design["Total Mass (kg)"]))  # Want LESS
+        cost_values.append(float(design["Total Cost (€)"]))  # Want LESS
+        r_lattice_values.append(float(design["r_lattice (mm)"]))  # Want MORE
+        t_sponge_values.append(float(design["t_sponge (mm)"]))  # Want MORE
+        support_mass_values.append(float(design["Support Mass (kg)"]))  # Want LESS
 
         thickness = float(design["Thickness (mm)"])
         V_vane = float(design["V_vane (m^3)"])
         V_sponge = float(design["V_sponge (m^3)"])
         
-        V_tank_mm3 = (70/1000 - 2 * thickness) ** 2 * (90/1000 - 2 * thickness)  # mm³
+        V_tank_mm3 = (70 - 2*thickness) ** 2 * (90 - 2*thickness)  # mm³
         V_tank = V_tank_mm3 / 10**9  # Convert to m³
         V_propellant = (V_tank - V_vane - V_sponge) * (85/90)  # m³
         V_propellant_cm3 = V_propellant * 10**6  # Convert to cm³
-        eff_tank_values.append(V_propellant_cm3 * volumetric_specific_impulse_gs_per_cm3[design["Propellant"]])  # gs
+        eff_tank_values.append(V_propellant)  # Want MORE
 
+    # Normalize values (inverting where needed)
+    mass_norm = normalize(mass_values, invert=True)  # LESS is better
+    eff_tank_norm = normalize(eff_tank_values)  # MORE is better
+    cost_norm = normalize(cost_values, invert=True)  # LESS is better
+    r_lattice_norm = normalize(r_lattice_values)  # MORE is better
+    t_sponge_norm = normalize(t_sponge_values)  # MORE is better
+    support_mass_norm = normalize(support_mass_values, invert=True)  # LESS is better
 
-    mass_norm = normalize(mass_values)
-    eff_tank_norm = normalize(eff_tank_values)
-    cost_norm = normalize(cost_values)
-    r_lattice_norm = normalize(r_lattice_values)
-    t_sponge_norm = normalize(t_sponge_values)
-    support_mass_norm = normalize(support_mass_values)
-
-    # Compute printability (equal weights of 1/3)
+    # Compute printability (favoring higher r_lattice, t_sponge, and lower support mass)
     printability_values = [
         (r + t + s) / 3 for r, t, s in zip(r_lattice_norm, t_sponge_norm, support_mass_norm)
     ]
@@ -655,19 +657,25 @@ def trade_off():
     printability_norm = normalize(printability_values)
 
     # Compute final trade-off score using weights
-    weights = {"Mass": 4, "Effective Tank Volume": 2, "Cost": 3, "Printability": 2}
+    weights = {"Mass": 7, "Effective Tank Volume": 8, "Cost": 10, "Printability": 5}
     
     trade_off_scores = [
-        (4 * m + 2 * e + 3 * c + 2 * p) / sum(weights.values())
+        (weights["Mass"] * m +
+         weights["Effective Tank Volume"] * e +
+         weights["Cost"] * c +
+         weights["Printability"] * p) / sum(weights.values())
         for m, e, c, p in zip(mass_norm, eff_tank_norm, cost_norm, printability_norm)
     ]
 
-    # Store results
+    # Store normalized results
     for i, design in enumerate(designs):
-        design["Printability"] = printability_values[i]
+        design["Normalized Mass"] = mass_norm[i]
+        design["Normalized Effective Tank Volume"] = eff_tank_norm[i]
+        design["Normalized Cost"] = cost_norm[i]
+        design["Normalized Printability"] = printability_norm[i]
         design["Trade-off Score"] = trade_off_scores[i]
 
-    # Write updated data to a new CSV
+    # Write updated data with normalized values to a new CSV
     output_file_path = os.path.join("data", "PMD_designs_with_tradeoff.csv")
     with open(output_file_path, mode='w', newline='') as file:
         fieldnames = designs[0].keys()
@@ -676,11 +684,21 @@ def trade_off():
         writer.writerows(designs)
 
     print(f"Trade-off analysis completed. Results saved to {output_file_path}")
-    #Print top 10 designs
+
+    # Print top 10 designs with normalized values
     designs.sort(key=lambda x: x["Trade-off Score"], reverse=True)
-    print("Top 10 designs:")
-    for i in range(10):
-        print(f"Material: {designs[i]['Material']}, Structure Type: {designs[i]['Structure Type']}, Propellant: {designs[i]['Propellant']}, Thickness: {designs[i]['Thickness (mm)']} mm, Trade-off Score: {designs[i]['Trade-off Score']:.2f}")
+    print("\nTop 10 designs with Normalized Values:")
+    for i in range(min(10, len(designs))):
+        print(f"""
+        Material: {designs[i]['Material']}
+        Structure Type: {designs[i]['Structure Type']}
+        Propellant: {designs[i]['Propellant']}
+        Normalized Mass: {designs[i]['Normalized Mass']:.3f}
+        Normalized Effective Tank Volume: {designs[i]['Normalized Effective Tank Volume']:.3f}
+        Normalized Cost: {designs[i]['Normalized Cost']:.3f}
+        Normalized Printability: {designs[i]['Normalized Printability']:.3f}
+        Trade-off Score: {designs[i]['Trade-off Score']:.3f}
+        """)
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.abspath(__file__))
