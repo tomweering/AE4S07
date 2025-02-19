@@ -8,6 +8,10 @@
 ## Overview
 Designing a parallelepiped-shaped tank for a green mono-propellant CubeSat system, using additive manufacturing techniques.
 
+## Model Render
+
+![Parallelepiped Tank Render](models/render.png)
+
 
 ## Keywords
 CubeSat, Propulsion, Parallelepiped Tank, Green Propellant, Additive Manufacturing
