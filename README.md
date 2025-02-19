@@ -10,6 +10,9 @@ Designing a parallelepiped-shaped tank for a green mono-propellant CubeSat syste
 
 ## Model Render
 
+<img src="models/render.png" alt="Parallelepiped Tank Render" width="400"/>
+
+
 ![Parallelepiped Tank Render](models/render.png)
 
 
